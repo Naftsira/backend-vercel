@@ -4,7 +4,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 module.exports = async (req, res) => {
   // Tambahkan Header CORS di awal fungsi
-  res.setHeader('Access-Control-Allow-Origin', 'https://domain-frontend-anda.com'); // GANTI DENGAN URL FRONTEND ANDA
+  res.setHeader('Access-Control-Allow-Origin', 'https://naftali.it.student.pens.ac.id'); // GANTI DENGAN URL FRONTEND ANDA
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS'); // Izinkan metode POST dan OPTIONS (untuk preflight)
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); // Izinkan header Content-Type
 
