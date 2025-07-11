@@ -1,72 +1,59 @@
-// api/generate-content.js
+// Mengimpor library yang diperlukan
+const express = require("express");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const cors = require("cors"); // Untuk mengizinkan permintaan dari domain lain
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// Inisialisasi aplikasi Express
+const app = express();
 
-module.exports = async (req, res) => {
-  // Tambahkan Header CORS di awal fungsi
-  res.setHeader('Access-Control-Allow-Origin', 'https://naftali.it.student.pens.ac.id'); // GANTI DENGAN URL FRONTEND ANDA
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS'); // Izinkan metode POST dan OPTIONS (untuk preflight)
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); // Izinkan header Content-Type
+// Menggunakan middleware
+app.use(cors()); // Mengaktifkan CORS untuk semua rute
+app.use(express.json()); // Mem-parsing body permintaan sebagai JSON
 
-  // Tangani permintaan OPTIONS (preflight request dari browser)
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+// Mengambil API Key dari Vercel Environment Variables
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-  // 1. Validasi Metode HTTP dan Keberadaan Prompt
-  if (req.method !== 'POST' || !req.body || !req.body.prompt) {
-    return res.status(400).json({ error: 'Permintaan tidak valid. Harap kirimkan permintaan POST dengan "prompt" di body.' });
-  }
+// Data tentang Anda, sekarang aman di backend
+const aboutMeData = `
+    Tolong bertindak sebagai asisten pribadi untuk Naftali. Jawab pertanyaan berdasarkan informasi berikut.
+    Jangan menambahkan informasi di luar konteks ini. Jawab dengan ramah, singkat, dan dalam Bahasa Indonesia atau Inggris sesuai pertanyaan.
 
-  // Sisa kode fungsi Anda di sini... (sama seperti yang disederhanakan sebelumnya)
+    Data tentang Naftali:
+    - Nama: Naftali
+    - Studi: Jurusan Informatika di PENS (Politeknik Elektronika Negeri Surabaya).
+    - Lokasi: Surabaya, Indonesia.
+    - Minat: Teknologi dan pengembangan perangkat lunak.
+    - Sosial Media: Memiliki profil di LinkedIn, Instagram, dan Github yang bisa diakses melalui ikon di halaman.
+`;
 
+// Membuat endpoint API utama
+app.post("/api/chat", async (req, res) => {
   try {
-      const apiKey = process.env.GOOGLE_API_KEY;
+    // Mengambil prompt dari body permintaan frontend
+    const userPrompt = req.body.prompt;
 
-      if (!apiKey) {
-          console.error("Kesalahan Server: GOOGLE_API_KEY tidak diatur di variabel lingkungan.");
-          return res.status(500).json({ error: 'Kesalahan konfigurasi server: Kunci API tidak ditemukan.' });
-      }
+    if (!userPrompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
 
-      const aboutMeData = `
-          Jawab pertanyaan berdasarkan informasi berikut.
-          Jangan menambahkan informasi di luar konteks ini. Jawab dengan ramah, singkat, dan dalam Bahasa Indonesia atau Inggris sesuai pertanyaan.
+    // Memilih model Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-          Data tentang Naftali:
-          - Nama: Naftali
-          - Studi: Jurusan Informatika di PENS (Politeknik Elektronika Negeri Surabaya).
-          - Lokasi: Surabaya, Indonesia.
-          - Minat: Teknologi dan pengembangan perangkat lunak.
-          - Sosial Media: Memiliki profil di LinkedIn, Instagram, dan Github yang bisa diakses melalui ikon di halaman.
-          - Slogan: Dont wanna be Genius, already hard just to be a man
-          - Pacar: Mitsuha
-      `;
+    // Menggabungkan data Anda dengan prompt pengguna
+    const fullPrompt = `${aboutMeData}\n\nPertanyaan Pengguna: "${userPrompt}"\n\nJawaban Asisten:`;
 
-      const prompt = req.body.prompt;
-      const fullPrompt = `${aboutMeData}\n\nPertanyaan Pengguna: "${prompt}"\n\nJawaban Asisten:`;
+    // Menghasilkan konten
+    const result = await model.generateContent(fullPrompt);
+    const response = await result.response;
+    const text = response.text();
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-      const chatHistory = [{ role: "user", parts: [{ text: fullPrompt }] }];
-      const payload = { contents: chatHistory };
-
-      const result = await model.generateContent(payload);
-      const response = await result.response;
-      const text = response.text();
-
-      res.status(200).json({ generatedText: text });
-
+    // Mengirim jawaban kembali ke frontend
+    res.json({ answer: text });
   } catch (error) {
-      console.error("Error saat memanggil Google AI API:", error);
-
-      let errorMessageForClient = 'Maaf, terjadi kesalahan saat memproses permintaan Anda.';
-      if (error.message && error.message.includes('API key not valid')) {
-          errorMessageForClient = 'Kesalahan otentikasi: Kunci API yang dikonfigurasi di server tidak valid.';
-      } else if (error.message) {
-          errorMessageForClient = `Terjadi kesalahan: ${error.message}`;
-      }
-
-      res.status(500).json({ error: errorMessageForClient });
+    console.error("Error processing chat:", error);
+    res.status(500).json({ error: "Failed to generate response from AI" });
   }
-};
+});
+
+// Ekspor aplikasi untuk Vercel
+module.exports = app;
