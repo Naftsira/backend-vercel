@@ -1,0 +1,12 @@
+{
+  "name": "vercel-ai-proxy",
+  "version": "1.0.0",
+  "description": "Vercel serverless function for Google AI proxy",
+  "main": "api/generate-content.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.1.3"
+  }
+}
